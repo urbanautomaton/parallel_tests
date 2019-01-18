@@ -1,3 +1,4 @@
+require "parallel_tests/rspec/drb_server"
 require 'optparse'
 require 'tempfile'
 require 'parallel_tests'
@@ -292,8 +293,19 @@ module ParallelTests
     end
 
     def report_time_taken
-      seconds = ParallelTests.delta { yield }.to_i
-      puts "\nTook #{seconds} seconds#{detailed_duration(seconds)}"
+      RSpec::DRbServer.run do |drb_server|
+        seconds = ParallelTests.delta { yield }.to_i
+
+        puts "Pending: (Failures listed here are expected and do not affect your suite's status)\n"
+        puts drb_server.pending_messages.join
+        puts "Failures:\n"
+        puts drb_server.failure_messages.join("\n")
+        puts "\nFailed examples:"
+        puts drb_server.rerun_commands.join("\n")
+        puts
+        puts drb_server.summarize_results
+        puts "\nTook #{seconds} seconds#{detailed_duration(seconds)}"
+      end
     end
 
     def detailed_duration(seconds)
